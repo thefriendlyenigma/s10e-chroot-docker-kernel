@@ -1,4 +1,60 @@
-# Cruel Kernel Tree for Samsung S10, Note10 devices
+# s10e Kernel for Debian Chroot
+This is a custom kernel for the G970F Samsung s10e (Exynos Version), which allows the device to run Docker inside a Debian 12 Bookworm chroot, running from the external SD card.
+This was made from a combination of a desire to make the most of a high-storage micro SD card, and the various difficulties I experienced running Docker on the Android's internal storage itself due to filesystem encryption.
+
+Cruel Kernel has been modified while referring to [this guide](https://gist.github.com/FreddieOliveira/efe850df7ff3951cb62d74bd770dce27) on how to change the kernel settings, as well as good old-fashioned troubleshooting in how to work around the limitations of Docker. 
+
+The building scripts, which automatically fetch Magisk, have also been tweaked to allow the user to build the kernel locally again.
+
+## Building
+This was tested on a fresh Ubuntu 24.04 LTS Noble container.
+
+``` bash
+# Prerequisites as in original document
+sudo apt-get install build-essential libncurses-dev bc bison flex libssl-dev libelf-dev heimdall-flash android-tools-adb android-tools-fastboot curl p7zip-full
+# libtinfo5 is not available in Ubuntu 24.04 LTS, therefore it must be installed manually
+wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
+sudo apt install ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
+# Out of the others, only mkbootimg was required
+# In order to properly import it though, the python-is-python3 package was required
+sudo apt install python-is-python3
+wget -q https://android.googlesource.com/platform/system/tools/mkbootimg/+archive/refs/heads/master.tar.gz -O - | tar xzf - mkbootimg.py gki
+chmod +x mkbootimg.py
+sudo mv mkbootimg.py /usr/local/bin/mkbootimg
+sudo mv gki $(python -c 'import site; print(site.getsitepackages()[0])')
+```
+
+Clone the current git repository, including the submodules so you can get the toolchain.
+
+``` bash
+git clone --recurse-submodules --depth=1 https://github.com/thefriendlyenigma/s10e-chroot-docker-kernel.git
+```
+
+Enter the directory, and then run the build script, specifying the model as G970F **(other models have not been tested to work!)**
+Please do keep in mind that it will cause CPU to spike to 100% usage, so make sure that you're not working on anything urgent while this is happening!
+
+``` bash
+cd s10e-chroot-docker-kernel
+./cruelbuild model=G970F
+```
+Wait a few minutes for the build to complete.
+
+Once the build completes, it should output a file `G970F.img` in the main directory.
+
+## Installing the Kernel
+The kernel needs to installed to the s10e through the Odin tool.
+
+Before doing this, ensure your phone's bootloader is unlocked, and all your data on your phone is backed up to a safe place!
+
+1. Rename the image `G970F.img` to `boot.img`
+2. Put `boot.img` into a tar archive, WITHOUT compression - it should create something like `boot.img.tar`. 
+3. Obtain the version of the Odin tool available for your respective operating system, 
+4. Place your s10e into download mode - either via the button combination or `adb reboot download` through USB debugging, then:
+    - If using the Windows GUI version, add `boot.img.tar` to the section marked `AP` 
+    - If using the Linux CLI version, run `odin4 -a ./path/to/boot.img.tar` 
+5. The phone should restart at the process' completion. If flashing from stock, the system will likely prompt you that the system is corrupt, and it needs to be factory reset. Proceed with this.
+6. The phone should boot normally (albeit with a warning that says you are not using Samsung's official software on each reboot, but no need to worry, that's normal). Proceed with setup as usual.
+7. To gain the root access the kernel provides, install the Magisk v27 apk to the phone through whichever method you prefer, then reboot. The kernel installation is complete~
 
 ![CI](https://github.com/CruelKernel/samsung-exynos9820/workflows/CI/badge.svg)
 
@@ -6,7 +62,7 @@ Based on samsung sources and android common tree.
 Supported devices: G970F/N, G973F/N, G975F/N G977B/N, N970F, N975F,
 N971N, N976B/N.
 
-## Contributors
+### Contributors ###
 
 - fart1-git - for removing vendor check of DP cables in DEX mode
 - NZNewbie - for adding fiops scheduler
@@ -15,25 +71,25 @@ N971N, N976B/N.
 - @bamsbamx - ported boeffla\_wakelock\_blocker module
 - Nico (@NicoMax2012) - ported moro sound module
 
-## How to install
+### How to install ###
 
 First of all, TWRP Recovery + multidisabler should be installed in all cases.
 It's a preliminary step. Next, backup your existing kernel. You will be able
 to restore it from TWRP Recovery in case of problems.
 
-### How to install zip file
+#### How to install zip file ####
 
-#### TWRP
+##### TWRP #####
 
 Reboot to TWRP. Flash CruelKernel.zip. Reboot to system.
 
-### How to install img file (raw image)
+#### How to install img file (raw image) ####
 
-#### TWRP
+##### TWRP #####
 
 Reboot to TWRP. Flash boot.img to the boot slot. Reboot to system.
 
-#### ADB/Termux (root required)
+##### ADB/Termux (root required) #####
 
 With ADB:
 ```sh
@@ -52,11 +108,11 @@ $ rm -f /sdcard/boot.img
 $ reboot
 ```
 
-#### Flashify or FKM (root required)
+##### Flashify or FKM (root required) #####
 
 Just flash one of boot.img files suitable for your phone's model in the app.
 
-#### Heimdall
+##### Heimdall #####
 
 Reboot to Download Mode.
 ```bash
@@ -64,7 +120,7 @@ $ sudo heimdall flash --BOOT boot.img
 ```
 Reboot to system.
 
-## Pin problem (Can't login)
+### Pin problem (Can't login) ###
 
 The problem is not in sources. It's due to os\_patch\_level mismatch with you current
 kernel (and/or twrp). CruelKernel uses common security patch date to be in sync with
@@ -93,7 +149,7 @@ How can you solve the problem? 6 different ways:
   See the next section if you want to rebuild the kernel.
 - You can do the full wipe during cruel kernel flashing
 
-## How to customize the kernel
+### How to customize the kernel ###
 
 It's possible to customize the kernel and build it in a web browser.
 First of all, you need to create an account on GitHub. Next, **fork**
@@ -154,7 +210,7 @@ and "\\" on the previous line.
 OS patch date can be changed with ```os_patch_level=2020-12``` argument,
 the default current date is in cruel/build.mkbootimg.G973F file.
 
-### Preset configurations
+#### Preset configurations ####
 
 Available configuration presets can be found in [configs](kernel/configs/) folder.
 Only the *.conf files prefixed with "cruel" are meaningful.
@@ -258,7 +314,7 @@ To keep your version of the sources in sync with main tree, please look at one o
 - [How can I keep my fork in sync without adding a separate remote?](https://stackoverflow.com/a/21131381)
 - [How do I update a GitHub forked repository?](https://stackoverflow.com/a/23853061)
 
-### Toolchain
+#### Toolchain ####
 
 It's possible to select a toolchain. For example, you can switch to default toolchain by adding
 "TOOLCHAIN: default" line in the main.yml config file.
@@ -279,7 +335,7 @@ Available toolchains:
  - system-gcc - gcc cross compiler installed in your system
  - system-clang - clang installed in your system
 
-## How to build the kernel locally on your PC
+### How to build the kernel locally on your PC ###
 
 This instructions assumes you are using Linux. Install heimdall if you want to flash the
 kernel automatically.
@@ -343,7 +399,7 @@ $ FLASH=y ./cruelbuild mkimg ...
 # FLASH=y ./cruelbuild mkimg name="CustomCruel" model=G973F toolchain=proton +magisk=canary +wireguard +ttl +cifs +nohardening
 ```
 
-## Support
+### Support ###
 
 - [Telegram](https://t.me/joinchat/GsJfBBaxozXvVkSJhm0IOQ)
 - [XDA Thread](https://forum.xda-developers.com/galaxy-s10/samsung-galaxy-s10--s10--s10-5g-cross-device-development-exynos/kernel-cruel-kernel-s10-note10-v3-t4063495)
