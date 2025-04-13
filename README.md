@@ -56,6 +56,60 @@ Before doing this, ensure your phone's bootloader is unlocked, and all your data
 6. The phone should boot normally (albeit with a warning that says you are not using Samsung's official software on each reboot, but no need to worry, that's normal). Proceed with setup as usual.
 7. To gain the root access the kernel provides, install the Magisk v27 apk to the phone through whichever method you prefer, then reboot. The kernel installation is complete~
 
+## Docker Important Information
+As the Docker Termux guide mentioned above states, there are a handful of caveats to keep in mind when running Docker.
+#### Mounting Cgroups
+The cgroups of the host system need to be mounted *to the chroot* in order for `dockerd` to start. They should NOT be unmounted from the chroot while `dockerd` is running, because that can cause unpredictable behaviour with containers.
+
+In other words, if you usually have the chroot script set to unmount `/sys`, which contains `/sys/fs/cgroup`, from the chroot on exit, it's best to either remove that line from the exit script, or leave the chroot running while dockerd is running.
+
+#### Networking
+Firstly, the containers MUST be run in host networking mode - I have found that provides the smoothest experience.
+
+Android only allows users with a network-related group ID (usually `3003`, `aid_inet`) to connect to the network. This means that by default, because they are made in "fresh" environments, **even if the Termux user and chroot user have network access, Docker containers will not.**
+
+There are two potential ways of remedying this, depending on how the Docker containers being used work:
+##### 1. Running the container with the GID 3003
+If the service runs as the root user within the container (in other words, does NOT create a custom user inside the container), you need to run the container with a GID of 3003.
+The user you're running the container as on the host needs to be part of the group with the ID 3003, as well.
+
+Example `docker-compose.yml`
+
+``` YAML
+services:
+  my_service:
+    image: image/image_name:latest
+    user: 1000:3003 # should be owner of volumes
+    network_mode: host
+```
+
+##### 2. Passing through a custom passwd file to the container's /etc/passwd
+If the container creates a custom user within the container (for example, the user `abc`), then:
+1. Analyse the dockerfile to see what the custom user's name is 
+2. Copy the `/etc/passwd` file from the host to the same directory as the `docker-compose.yml` file
+3. Add a line at the bottom, assigning the custom user the gid 3003
+
+Example `docker-compose.yml`
+``` YAML
+---
+services:
+  my_service:
+    image: image/image_name:latest
+    container_name: my_container
+    volumes:
+      # Because running off Android: user "abc" is given the GID of 3003 to allow network connections
+      - ./passwd:/etc/passwd
+    network_mode: host
+```
+
+Example line added at the bottom of the `passwd` file:
+``` 
+abc:x:1001:3003::/home/abc:/bin/bash
+```
+
+# Cruel Kernel Original README
+## Cruel Kernel Tree for Samsung S10, Note10 devices ##
+
 ![CI](https://github.com/CruelKernel/samsung-exynos9820/workflows/CI/badge.svg)
 
 Based on samsung sources and android common tree.
