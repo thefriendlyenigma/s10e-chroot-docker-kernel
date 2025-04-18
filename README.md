@@ -107,6 +107,8 @@ Example line added at the bottom of the `passwd` file:
 abc:x:1001:3003::/home/abc:/bin/bash
 ```
 
+#### Permissions
+Because the group permissions are needed for Docker to access the network, BUT `dockerd` needs to be run as root, you will need to create the folders on the host that map to the container manually, before starting the container. Otherwise, the container will not be able to save its configuration. If you have already done this and have made data that you don't want to delete, then (presuming user is the ID you're running the container with, and aid_inet is the group with the ID 3003), run `sudo chown -R user /path/to/folder` and `sudo chgrp -R aid_inet /path/to/folder` on each host folder.
 # Cruel Kernel Original README
 ## Cruel Kernel Tree for Samsung S10, Note10 devices ##
 
