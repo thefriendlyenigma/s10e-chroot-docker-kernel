@@ -84,7 +84,7 @@ services:
 ```
 
 ##### 2. Passing through a custom passwd file to the container's /etc/passwd
-If the container creates a custom user within the container (for example, the user `abc`), then:
+If the container creates a custom user within the container (for example, the user `abc`) AND it is not possible to pass through the group ID through an environment variable (i.e., `PGID=3003`), then:
 1. Analyse the dockerfile to see what the custom user's name is 
 2. Copy the `/etc/passwd` file from the host to the same directory as the `docker-compose.yml` file
 3. Add a line at the bottom, assigning the custom user the gid 3003
