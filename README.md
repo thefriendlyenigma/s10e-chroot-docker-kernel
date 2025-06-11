@@ -68,8 +68,8 @@ Firstly, the containers MUST be run in host networking mode - I have found that 
 
 Android only allows users with a network-related group ID (usually `3003`, `aid_inet`) to connect to the network. This means that by default, because they are made in "fresh" environments, **even if the Termux user and chroot user have network access, Docker containers will not.**
 
-There are two potential ways of remedying this, depending on how the Docker containers being used work:
-##### 1. Running the container with the GID 3003
+There are three potential ways of remedying this, depending on how the Docker containers being used work:
+##### 1. (Recommended) Running the container with the GID 3003
 If the service runs as the root user within the container (in other words, does NOT create a custom user inside the container), you need to run the container with a GID of 3003.
 The user you're running the container as on the host needs to be part of the group with the ID 3003, as well.
 
@@ -82,8 +82,21 @@ services:
     user: 1000:3003 # should be owner of volumes
     network_mode: host
 ```
+##### 2. Passing through the GID as an environment variable
+If the container creates a custom user within the container, meaning that the container does NOT run with the IDs of the specified user, it may be possible to pass through an environment variable instead.
 
-##### 2. Passing through a custom passwd file to the container's /etc/passwd
+Example `docker-compose.yml`
+``` YAML
+services:
+  my_service:
+    image: image/image_name:latest
+    network_mode: host
+    environment:
+      PUID: 1000
+      PGID: 3003
+```
+
+##### 3. (Potentially unstable) Passing through a custom passwd file to the container's /etc/passwd
 If the container creates a custom user within the container (for example, the user `abc`) AND it is not possible to pass through the group ID through an environment variable (i.e., `PGID=3003`), then:
 1. Analyse the dockerfile to see what the custom user's name is 
 2. Copy the `/etc/passwd` file from the host to the same directory as the `docker-compose.yml` file
